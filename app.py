@@ -45,7 +45,7 @@ if uploaded_file:
 
         if st.sidebar.button("🚀 Apply Background"):
             with st.spinner("Removing background..."):
-                from rembg import remove  # Lazy load (fix 503)
+                from rembg import remove
 
                 cutout = remove(image)
                 bg = Image.new("RGBA", cutout.size, color)
@@ -57,25 +57,26 @@ if uploaded_file:
 
             buf = io.BytesIO()
             result.save(buf, format="PNG")
-
             st.download_button("📥 Download", buf.getvalue(), "bg.png")
 
     # =========================
-    # 🎯 ERASE OBJECT
+    # 🎯 ERASE OBJECT (FIXED)
     # =========================
     elif feature == "🎯 Erase":
-        from streamlit_drawable_canvas import st_canvas  # Lazy load
+        from streamlit_drawable_canvas import st_canvas
 
         st.sidebar.subheader("🎯 Erase Settings")
-        brush = st.sidebar.slider("Brush Size", 5, 30, 10)
+        brush = st.sidebar.slider("Brush Size", 5, 25, 10)
 
-        st.write("✍️ Draw on object to remove")
+        st.write("✍️ Draw directly on the image to erase")
 
+        # ✅ FIX: draw ON IMAGE
         canvas = st_canvas(
-            fill_color="rgba(255,0,0,0.3)",
+            fill_color="rgba(255, 0, 0, 0.3)",
             stroke_width=brush,
             stroke_color="white",
-            background_color="rgba(0,0,0,0)",
+            background_image=image,  # ⭐ KEY FIX
+            update_streamlit=True,
             height=image.height,
             width=image.width,
             drawing_mode="freedraw",
@@ -83,10 +84,13 @@ if uploaded_file:
         )
 
         if canvas.image_data is not None:
-            with st.spinner("Erasing..."):
-                mask = canvas.image_data[:, :, 3] > 0
+            with st.spinner("Erasing selected spot..."):
+                mask = canvas.image_data[:, :, 3]
+                mask = (mask > 0)
+
                 img_array = np.array(image)
 
+                # ✅ EXACT SPOT ERASE (NO RECTANGLE)
                 img_array[mask] = [255, 255, 255, 0]
 
                 result = Image.fromarray(img_array)
@@ -97,7 +101,6 @@ if uploaded_file:
 
             buf = io.BytesIO()
             result.save(buf, format="PNG")
-
             st.download_button("📥 Download", buf.getvalue(), "erase.png")
 
     # =========================
@@ -120,7 +123,6 @@ if uploaded_file:
 
             buf = io.BytesIO()
             result.save(buf, format="PNG")
-
             st.download_button("📥 Download", buf.getvalue(), "sharp.png")
 
 else:
@@ -130,3 +132,5 @@ else:
 # FOOTER
 # =========================
 st.markdown("<hr><p style='text-align:center;color:gray;'>Built with ❤️ using Streamlit</p>", unsafe_allow_html=True)
+   
+           
