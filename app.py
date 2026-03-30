@@ -1,34 +1,18 @@
 import streamlit as st
 import numpy as np
 from PIL import Image, ImageFilter
-from rembg import remove
-from streamlit_drawable_canvas import st_canvas
 import io
 
 # =========================
-# PAGE CONFIG
+# CONFIG
 # =========================
-st.set_page_config(
-    page_title="AI Image Studio",
-    layout="wide",
-    page_icon="✨"
-)
+st.set_page_config(page_title="AI Image Studio", layout="wide")
+
+st.markdown("<h1 style='text-align:center;'>✨ AI Image Studio</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center;color:gray;'>Background • Erase • Enhance</p>", unsafe_allow_html=True)
 
 # =========================
-# HEADER
-# =========================
-st.markdown(
-    "<h1 style='text-align:center;'>✨ AI Image Studio</h1>",
-    unsafe_allow_html=True
-)
-
-st.markdown(
-    "<p style='text-align:center;color:gray;'>Background • Erase • Enhance</p>",
-    unsafe_allow_html=True
-)
-
-# =========================
-# SIDEBAR (PRO UI)
+# SIDEBAR
 # =========================
 st.sidebar.title("⚙️ Controls")
 
@@ -40,7 +24,7 @@ feature = st.sidebar.radio(
 )
 
 # =========================
-# MAIN AREA
+# MAIN
 # =========================
 col1, col2 = st.columns(2)
 
@@ -60,10 +44,12 @@ if uploaded_file:
         color = st.sidebar.color_picker("Pick Color", "#00ffaa")
 
         if st.sidebar.button("🚀 Apply Background"):
-            cutout = remove(image)
+            with st.spinner("Removing background..."):
+                from rembg import remove  # Lazy load (fix 503)
 
-            bg = Image.new("RGBA", cutout.size, color)
-            result = Image.alpha_composite(bg, cutout)
+                cutout = remove(image)
+                bg = Image.new("RGBA", cutout.size, color)
+                result = Image.alpha_composite(bg, cutout)
 
             with col2:
                 st.subheader("✅ Result")
@@ -78,6 +64,8 @@ if uploaded_file:
     # 🎯 ERASE OBJECT
     # =========================
     elif feature == "🎯 Erase":
+        from streamlit_drawable_canvas import st_canvas  # Lazy load
+
         st.sidebar.subheader("🎯 Erase Settings")
         brush = st.sidebar.slider("Brush Size", 5, 30, 10)
 
@@ -95,12 +83,13 @@ if uploaded_file:
         )
 
         if canvas.image_data is not None:
-            mask = canvas.image_data[:, :, 3] > 0
-            img_array = np.array(image)
+            with st.spinner("Erasing..."):
+                mask = canvas.image_data[:, :, 3] > 0
+                img_array = np.array(image)
 
-            img_array[mask] = [255, 255, 255, 0]
+                img_array[mask] = [255, 255, 255, 0]
 
-            result = Image.fromarray(img_array)
+                result = Image.fromarray(img_array)
 
             with col2:
                 st.subheader("✅ Result")
@@ -119,10 +108,11 @@ if uploaded_file:
         strength = st.sidebar.slider("Sharpness", 1, 5, 2)
 
         if st.sidebar.button("🚀 Enhance"):
-            result = image
+            with st.spinner("Enhancing image..."):
+                result = image
 
-            for _ in range(strength):
-                result = result.filter(ImageFilter.SHARPEN)
+                for _ in range(strength):
+                    result = result.filter(ImageFilter.SHARPEN)
 
             with col2:
                 st.subheader("✅ Result")
@@ -139,7 +129,4 @@ else:
 # =========================
 # FOOTER
 # =========================
-st.markdown(
-    "<hr><p style='text-align:center;color:gray;'>Built with ❤️ using Streamlit</p>",
-    unsafe_allow_html=True
-)
+st.markdown("<hr><p style='text-align:center;color:gray;'>Built with ❤️ using Streamlit</p>", unsafe_allow_html=True)
