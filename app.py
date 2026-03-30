@@ -4,12 +4,28 @@ from PIL import Image, ImageFilter
 import io
 
 # =========================
+# 🔧 PATCH (FIX CANVAS CRASH)
+# =========================
+if not hasattr(st.image, "image_to_url"):
+    def image_to_url(img, width=None):
+        import base64
+        from io import BytesIO
+
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+
+    st.image.image_to_url = image_to_url
+
+
+# =========================
 # CONFIG
 # =========================
 st.set_page_config(page_title="AI Image Studio", layout="wide")
 
 st.markdown("<h1 style='text-align:center;'>✨ AI Image Studio</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center;color:gray;'>Background • Erase • Enhance</p>", unsafe_allow_html=True)
+
 
 # =========================
 # SIDEBAR
@@ -23,8 +39,9 @@ feature = st.sidebar.radio(
     ["🎨 Background", "🎯 Erase", "✨ Enhance"]
 )
 
+
 # =========================
-# MAIN
+# MAIN UI
 # =========================
 col1, col2 = st.columns(2)
 
@@ -37,7 +54,7 @@ if uploaded_file:
         st.image(image, use_column_width=True)
 
     # =========================
-    # 🎨 BACKGROUND CHANGE
+    # 🎨 BACKGROUND REMOVE
     # =========================
     if feature == "🎨 Background":
         st.sidebar.subheader("🎨 Background Settings")
@@ -60,7 +77,7 @@ if uploaded_file:
             st.download_button("📥 Download", buf.getvalue(), "bg.png")
 
     # =========================
-    # 🎯 ERASE OBJECT (FIXED)
+    # 🎯 ERASE OBJECT
     # =========================
     elif feature == "🎯 Erase":
         from streamlit_drawable_canvas import st_canvas
@@ -68,14 +85,12 @@ if uploaded_file:
         st.sidebar.subheader("🎯 Erase Settings")
         brush = st.sidebar.slider("Brush Size", 5, 25, 10)
 
-        st.write("✍️ Draw directly on the image to erase")
+        st.write("✍️ Draw on the image to mark area for erase")
 
-        # ✅ FIX: draw ON IMAGE
         canvas = st_canvas(
             fill_color="rgba(255, 0, 0, 0.3)",
             stroke_width=brush,
-            stroke_color="white",
-            background_image=image,  # ⭐ KEY FIX
+            background_image=image,
             update_streamlit=True,
             height=image.height,
             width=image.width,
@@ -84,13 +99,13 @@ if uploaded_file:
         )
 
         if canvas.image_data is not None:
-            with st.spinner("Erasing selected spot..."):
-                mask = canvas.image_data[:, :, 3]
-                mask = (mask > 0)
-
+            with st.spinner("Processing erase..."):
                 img_array = np.array(image)
 
-                # ✅ EXACT SPOT ERASE (NO RECTANGLE)
+                # alpha channel mask
+                mask = canvas.image_data[:, :, 3] > 0
+
+                # ✨ simple erase (transparent)
                 img_array[mask] = [255, 255, 255, 0]
 
                 result = Image.fromarray(img_array)
@@ -104,7 +119,7 @@ if uploaded_file:
             st.download_button("📥 Download", buf.getvalue(), "erase.png")
 
     # =========================
-    # ✨ BLUR REMOVAL
+    # ✨ ENHANCE IMAGE
     # =========================
     elif feature == "✨ Enhance":
         st.sidebar.subheader("✨ Enhance Settings")
@@ -127,6 +142,7 @@ if uploaded_file:
 
 else:
     st.info("👈 Upload an image from the sidebar to start")
+
 
 # =========================
 # FOOTER
