@@ -4,21 +4,6 @@ from PIL import Image, ImageFilter
 import io
 
 # =========================
-# 🔧 PATCH (FIX CANVAS CRASH)
-# =========================
-if not hasattr(st.image, "image_to_url"):
-    def image_to_url(img, width=None):
-        import base64
-        from io import BytesIO
-
-        buffer = BytesIO()
-        img.save(buffer, format="PNG")
-        return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
-
-    st.image.image_to_url = image_to_url
-
-
-# =========================
 # CONFIG
 # =========================
 st.set_page_config(page_title="AI Image Studio", layout="wide")
@@ -58,7 +43,7 @@ if uploaded_file:
     # =========================
     if feature == "🎨 Background":
         st.sidebar.subheader("🎨 Background Settings")
-        color = st.sidebar.color_picker("Pick Color", "#00ffaa")
+        color = st.sidebar.color_picker("Pick Background Color", "#00ffaa")
 
         if st.sidebar.button("🚀 Apply Background"):
             with st.spinner("Removing background..."):
@@ -77,7 +62,7 @@ if uploaded_file:
             st.download_button("📥 Download", buf.getvalue(), "bg.png")
 
     # =========================
-    # 🎯 ERASE OBJECT
+    # 🎯 ERASE OBJECT (FIXED STABLE)
     # =========================
     elif feature == "🎯 Erase":
         from streamlit_drawable_canvas import st_canvas
@@ -85,7 +70,7 @@ if uploaded_file:
         st.sidebar.subheader("🎯 Erase Settings")
         brush = st.sidebar.slider("Brush Size", 5, 25, 10)
 
-        st.write("✍️ Draw on the image to mark area for erase")
+        st.write("✍️ Draw on image to mark area to erase")
 
         canvas = st_canvas(
             fill_color="rgba(255, 0, 0, 0.3)",
@@ -98,14 +83,18 @@ if uploaded_file:
             key="canvas",
         )
 
+        # =========================
+        # MASK PROCESSING
+        # =========================
         if canvas.image_data is not None:
-            with st.spinner("Processing erase..."):
+            with st.spinner("Erasing selected area..."):
+
                 img_array = np.array(image)
 
-                # alpha channel mask
+                # alpha channel mask from drawing
                 mask = canvas.image_data[:, :, 3] > 0
 
-                # ✨ simple erase (transparent)
+                # remove pixels (transparent erase)
                 img_array[mask] = [255, 255, 255, 0]
 
                 result = Image.fromarray(img_array)
@@ -123,7 +112,7 @@ if uploaded_file:
     # =========================
     elif feature == "✨ Enhance":
         st.sidebar.subheader("✨ Enhance Settings")
-        strength = st.sidebar.slider("Sharpness", 1, 5, 2)
+        strength = st.sidebar.slider("Sharpness Level", 1, 5, 2)
 
         if st.sidebar.button("🚀 Enhance"):
             with st.spinner("Enhancing image..."):
@@ -138,7 +127,7 @@ if uploaded_file:
 
             buf = io.BytesIO()
             result.save(buf, format="PNG")
-            st.download_button("📥 Download", buf.getvalue(), "sharp.png")
+            st.download_button("📥 Download", buf.getvalue(), "enhanced.png")
 
 else:
     st.info("👈 Upload an image from the sidebar to start")
@@ -148,5 +137,5 @@ else:
 # FOOTER
 # =========================
 st.markdown("<hr><p style='text-align:center;color:gray;'>Built with ❤️ using Streamlit</p>", unsafe_allow_html=True)
-   
+
            
