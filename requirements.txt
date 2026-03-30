@@ -1,0 +1,5 @@
+streamlit
+numpy
+Pillow
+rembg
+streamlit-drawable-canvas==0.9.2
